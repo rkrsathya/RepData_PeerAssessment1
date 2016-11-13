@@ -1,25 +1,121 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+## Requirements
+
+This document helps to read the activity data of anonymous user for two months from csv file and generate plots on various evaluation conditions.
+
+The variables included in this dataset are:
+
+    1. steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+    2. date: The date on which the measurement was taken in YYYY-MM-DD format
+    3. interval: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+1. Read the data from csv file
+
+```{r}
+activityFrame <- read.csv("activity/activity.csv")
+```
+
+2. Histogram of the total number of steps taken each day.
+
+Bar plot helps in plotting the categoral data with the respective numerical column in y axis. But histogram plots continuous scale in x axis along with frequencies and density in y axis. Also histogram generates bin with equal width of bars generated.
+
+```{r}
+library(ggplot2)
+activityNoNA <- na.omit(activityFrame)
+activityAggregation <- aggregate(activityNoNA$steps~activityNoNA$date,activityNoNA,FUN = function(x) c(total = sum(x),mean = mean(x),medians = median(x)))
+names(activityAggregation) <- c("date","steps")
+
+ggplot(data = activityAggregation,aes(x=date,y=steps[,"total"]))+ labs(x="Date",y="Steps")+geom_bar(stat = "Identity")
+```
+
+3. Mean and median number of steps taken each day.
+
+The below table columns "steps.mean" and "steps.median" for each date.
+```{r}
+activityAggregation
+```
+
+4. Time series plot of the average number of steps taken.
+
+Below plot generates time series for mean of steps across the interval for all days.
+
+```{r}
+activityInterval <- aggregate(steps~interval,activityNoNA,mean)
+ggplot(data = activityInterval,aes(x=interval,y=steps))+geom_line()
+```
+
+5. The 5-minute interval that, on average, contains the maximum number of steps.
+
+The interval that has maximum number of steps is 
+```{r}
+activityInterval[which.max(activityInterval$steps),"interval"]
+```
+
+6. Code to describe and show a strategy for imputing missing data.
+
+The number of missing data in the dataset is
+```{r}
+nrow(activityFrame[is.na(activityFrame$steps),])
+
+```
+
+The missing data for steps in the dataset is imputed by taking average of all days for the interval.
+```{r}
+activityFrame$steps[is.na(activityFrame$steps)] <- activityInterval[match(activityFrame$interval[is.na(activityFrame$steps)],activityInterval$interval),"steps"]
+
+```
+
+Mean and median is calculated for the new dataset aross the date.
+
+```{r}
+activityAggregationIm <- aggregate(activityFrame$steps~activityFrame$date,activityFrame,FUN = function(x) c(total = sum(x),mean = mean(x),medians = median(x)))
+names(activityAggregationIm) <- c("date","steps")
+
+```
+
+Histogram is generated for the new imputed dataset.
+
+```{r}
+ggplot(data = activityAggregationIm,aes(x=date,y=steps[,"total"]))+geom_bar(stat = "Identity")+ labs(x="Date",y="Steps")
 
 
+```
 
-## What is mean total number of steps taken per day?
+The histogram from the omitted missing data and imputed dataset shows high different pattern.The mean and medians of the imputed dataset is shown below
 
+```{r}
+activityAggregationIm
 
+```
 
-## What is the average daily activity pattern?
+7. Are there differences in activity patterns between weekdays and weekends?
 
+The factor variables of weekdays and weekend are generated for the dataset date column.
 
+```{r}
+activityFrame$date <- as.Date(activityFrame$date)
+activityFrame$week <- factor((weekdays(activityFrame$date) %in% c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')), 
+                             levels=c(FALSE, TRUE), labels=c('weekend', 'weekday') )
 
-## Imputing missing values
+```
+ 
+The time series plotted with panel facet grid for weekdays and weekend on averaged steps across the factor variables for intervals.
 
+```{r}
+activityWeekInterval <- aggregate(steps~week+interval,activityFrame,mean)
 
+ggplot(data = activityWeekInterval,aes(x=interval,y=steps))+geom_line()+facet_grid(week~.)
 
-## Are there differences in activity patterns between weekdays and weekends?
+```
+
+The final plot show there are activies lower in weekdays than weekend for the user, though there is a high peat at an interval for weekday.
